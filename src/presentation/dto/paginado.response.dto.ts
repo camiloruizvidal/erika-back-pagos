@@ -6,13 +6,26 @@ export class MetaPaginadoResponseDto {
   @Expose({ name: 'total' })
   total!: number;
 
-  @ApiProperty({ description: 'Número de página solicitada (base 1)', type: Number })
+  @ApiProperty({
+    description: 'Número de página solicitada (base 1)',
+    type: Number,
+  })
   @Expose({ name: 'pagina' })
   pagina!: number;
 
-  @ApiProperty({ description: 'Cantidad de elementos por página', type: Number })
+  @ApiProperty({
+    description: 'Cantidad de elementos por página',
+    type: Number,
+  })
   @Expose({ name: 'tamanoPagina' })
   tamano_pagina!: number;
+
+  @ApiProperty({
+    description: 'Cantidad total de páginas disponibles',
+    type: Number,
+  })
+  @Expose({ name: 'totalPaginas' })
+  total_paginas!: number;
 }
 
 export class PaginadoResponseDto<T> {
@@ -25,4 +38,3 @@ export class PaginadoResponseDto<T> {
   @Expose({ name: 'data' })
   data!: T[];
 }
-
