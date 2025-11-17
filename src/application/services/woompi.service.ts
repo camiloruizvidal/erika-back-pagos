@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { Config } from '../../infrastructure/config/config';
 
 export interface IGenerarLinkPagoRequest {
   cuentaCobroId: number;
@@ -15,22 +16,16 @@ export interface IGenerarLinkPagoRequest {
 @Injectable()
 export class WoompiService {
   private readonly logger = new Logger(WoompiService.name);
-  private readonly woompiBaseUrl =
-    process.env.WOOMPI_BASE_URL || 'https://api.woompi.com/v1';
-  private readonly woompiApiKey = process.env.WOOMPI_API_KEY;
-  private readonly woompiPublicKey = process.env.WOOMPI_PUBLIC_KEY;
 
   constructor(private readonly httpService: HttpService) {}
 
-  async generarLinkPago(
-    datos: IGenerarLinkPagoRequest,
-  ): Promise<string> {
+  async generarLinkPago(datos: IGenerarLinkPagoRequest): Promise<string> {
     try {
       this.logger.log(
         `Generando link de pago Woompi para cuenta de cobro ID: ${datos.cuentaCobroId}`,
       );
 
-      if (!this.woompiApiKey || !this.woompiPublicKey) {
+      if (!Config.woompiPrivateKey) {
         this.logger.warn(
           'Credenciales de Woompi no configuradas. Usando link de fallback.',
         );
@@ -45,7 +40,7 @@ export class WoompiService {
         customer_email: datos.correoCliente,
         customer_full_name: datos.nombreCliente,
         expiration_date: datos.fechaLimitePago.toISOString(),
-        redirect_url: process.env.WOOMPI_REDIRECT_URL || 'https://erika.com/pago-exitoso',
+        redirect_url: Config.woompiRedirectUrl,
         metadata: {
           cuenta_cobro_id: datos.cuentaCobroId.toString(),
         },
@@ -53,11 +48,11 @@ export class WoompiService {
 
       const respuesta = await firstValueFrom(
         this.httpService.post<{ data: { checkout_url: string } }>(
-          `${this.woompiBaseUrl}/transactions`,
+          `${Config.woompiBaseUrl}/transactions`,
           payload,
           {
             headers: {
-              'Authorization': `Bearer ${this.woompiApiKey}`,
+              Authorization: `Bearer ${Config.woompiPrivateKey}`,
               'Content-Type': 'application/json',
             },
           },
@@ -82,8 +77,7 @@ export class WoompiService {
   }
 
   private generarLinkFallback(cuentaCobroId: number): string {
-    const baseUrl = process.env.PAGO_BASE_URL || 'https://pagar.erika.com';
+    const baseUrl = Config.pagoBaseUrl;
     return `${baseUrl}/${cuentaCobroId}`;
   }
 }
-
