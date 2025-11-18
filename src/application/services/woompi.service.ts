@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import * as crypto from 'crypto';
+import * as moment from 'moment-timezone';
 import { Config } from '../../infrastructure/config/config';
 import { IGenerarLinkPagoRequest } from '../../domain/interfaces/pagos.interface';
 
@@ -8,67 +8,89 @@ import { IGenerarLinkPagoRequest } from '../../domain/interfaces/pagos.interface
 export class WoompiService {
   private readonly logger = new Logger(WoompiService.name);
 
-  constructor(private readonly httpService: HttpService) {}
-
   async generarLinkPago(datos: IGenerarLinkPagoRequest): Promise<string> {
-    try {
-      this.logger.log(
-        `Generando link de pago Woompi para cuenta de cobro ID: ${datos.cuentaCobroId}`,
-      );
+    this.logger.log(
+      `Generando link de pago Woompi para cuenta de cobro ID: ${datos.cuentaCobroId}`,
+    );
 
-      if (!Config.woompiPrivateKey) {
-        this.logger.warn(
-          'Credenciales de Woompi no configuradas. Usando link de fallback.',
-        );
-        return this.generarLinkFallback(datos.cuentaCobroId);
-      }
-
-      const payload = {
-        amount_in_cents: Math.round(datos.valorTotal * 100),
-        currency: 'COP',
-        reference: datos.referencia,
-        description: datos.descripcion,
-        customer_email: datos.correoCliente,
-        customer_full_name: datos.nombreCliente,
-        expiration_date: datos.fechaLimitePago.toISOString(),
-        redirect_url: Config.woompiRedirectUrl,
-        metadata: {
-          cuenta_cobro_id: datos.cuentaCobroId.toString(),
-        },
-      };
-
-      const respuesta = await firstValueFrom(
-        this.httpService.post<{ data: { checkout_url: string } }>(
-          `${Config.woompiBaseUrl}/transactions`,
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${Config.woompiPrivateKey}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
-      );
-
-      const linkPago = respuesta.data.data.checkout_url;
-
-      this.logger.log(
-        `Link de pago Woompi generado exitosamente para cuenta de cobro ID: ${datos.cuentaCobroId}`,
-      );
-
-      return linkPago;
-    } catch (error) {
-      this.logger.error(
-        `Error al generar link de pago Woompi para cuenta de cobro ${datos.cuentaCobroId}:`,
-        error,
-      );
-      this.logger.warn('Usando link de fallback debido al error.');
-      return this.generarLinkFallback(datos.cuentaCobroId);
+    if (!Config.woompiPublicKey || !Config.woompiIntegritySecret) {
+      const mensajeError =
+        'Credenciales de Woompi no configuradas. Verifique WOOMPI_PUBLIC_KEY y WOOMPI_INTEGRITY_SECRET en el archivo .env';
+      this.logger.error(mensajeError);
+      throw new Error(mensajeError);
     }
+
+    const amountInCents = Math.round(datos.valorTotal * 100);
+    const expirationTime = moment
+      .tz(datos.fechaLimitePago, 'America/Bogota')
+      .format('YYYY-MM-DDTHH:mm:ssZ');
+
+    const parametros: Record<string, string> = {
+      'public-key': Config.woompiPublicKey,
+      currency: 'COP',
+      'amount-in-cents': amountInCents.toString(),
+      reference: datos.referencia,
+      'tax-in-cents:vat': '0',
+    };
+
+    if (Config.woompiRedirectUrl) {
+      parametros['redirect-url'] = Config.woompiRedirectUrl;
+    }
+
+    if (datos.fechaLimitePago) {
+      parametros['expiration-time'] = expirationTime;
+    }
+
+    if (datos.correoCliente) {
+      parametros['customer-data:email'] = datos.correoCliente;
+    }
+
+    if (datos.nombreCliente) {
+      parametros['customer-data:full-name'] = datos.nombreCliente;
+    }
+
+    if (datos.identificacionCliente) {
+      parametros['customer-data:legal-id'] = datos.identificacionCliente;
+      parametros['customer-data:legal-id-type'] = datos.tipoDocumentoCliente || 'CC';
+    }
+
+    if (datos.telefonoCliente) {
+      parametros['customer-data:phone-number'] = datos.telefonoCliente;
+    }
+
+    const firmaIntegridad = this.generarFirmaIntegridad(
+      parametros,
+      Config.woompiIntegritySecret,
+    );
+
+    parametros['signature:integrity'] = firmaIntegridad;
+
+    const queryString = new URLSearchParams(parametros).toString();
+    const urlCheckout = `https://checkout.wompi.co/p/?${queryString}`;
+
+    this.logger.log(
+      `Link de pago Woompi generado exitosamente para cuenta de cobro ID: ${datos.cuentaCobroId}`,
+    );
+    this.logger.debug(`URL generada: ${urlCheckout}`);
+
+    return urlCheckout;
   }
 
-  private generarLinkFallback(cuentaCobroId: number): string {
-    const baseUrl = Config.pagoBaseUrl;
-    return `${baseUrl}/${cuentaCobroId}`;
+  private generarFirmaIntegridad(
+    parametros: Record<string, string>,
+    integritySecret: string,
+  ): string {
+    const parametrosOrdenados = Object.keys(parametros)
+      .filter((key) => key !== 'signature:integrity')
+      .sort()
+      .map((key) => `${key}${parametros[key]}`)
+      .join('');
+
+    const hmac = crypto
+      .createHmac('sha256', integritySecret)
+      .update(parametrosOrdenados)
+      .digest('hex');
+
+    return hmac;
   }
 }

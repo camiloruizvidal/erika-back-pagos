@@ -4,6 +4,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
 } from 'class-validator';
@@ -71,4 +72,31 @@ export class GenerarLinkPagoRequestDto {
   @IsNotEmpty({ message: 'La fecha límite de pago es requerida' })
   @Type(() => Date)
   fechaLimitePago!: Date;
+
+  @ApiProperty({
+    description: 'Documento de identidad del cliente',
+    example: '1234567890',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'La identificación del cliente debe ser un texto' })
+  identificacionCliente?: string;
+
+  @ApiProperty({
+    description: 'Teléfono del cliente',
+    example: '3001234567',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'El teléfono del cliente debe ser un texto' })
+  telefonoCliente?: string;
+
+  @ApiProperty({
+    description: 'Tipo de documento del cliente',
+    example: 'CC',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'El tipo de documento debe ser un texto' })
+  tipoDocumentoCliente?: string;
 }

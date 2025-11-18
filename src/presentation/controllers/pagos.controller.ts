@@ -7,6 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
 import { WoompiService } from '../../application/services/woompi.service';
 import { GenerarLinkPagoRequestDto } from '../dto/generar-link-pago.request.dto';
 import { GenerarLinkPagoResponseDto } from '../dto/generar-link-pago.response.dto';
@@ -47,11 +48,10 @@ export class PagosController {
   ): Promise<GenerarLinkPagoResponseDto> {
     try {
       const linkPago = await this.woompiService.generarLinkPago(datos);
-      return { linkPago };
+      return plainToInstance(GenerarLinkPagoResponseDto, { linkPago });
     } catch (error) {
       this.logger.error({ error: JSON.stringify(error) });
       this.manejadorError.resolverErrorApi(error);
     }
   }
 }
-
