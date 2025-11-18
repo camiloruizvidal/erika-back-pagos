@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GenerarLinkPagoRequestDto {
@@ -14,7 +21,7 @@ export class GenerarLinkPagoRequestDto {
 
   @ApiProperty({
     description: 'Valor total a pagar',
-    example: 150000.00,
+    example: 150000.0,
   })
   @IsNumber({}, { message: 'El valor total debe ser un número' })
   @Min(0.01, { message: 'El valor total debe ser mayor a 0' })
@@ -42,7 +49,10 @@ export class GenerarLinkPagoRequestDto {
     description: 'Correo electrónico del cliente',
     example: 'cliente@example.com',
   })
-  @IsEmail({}, { message: 'El correo del cliente debe ser un correo electrónico válido' })
+  @IsEmail(
+    {},
+    { message: 'El correo del cliente debe ser un correo electrónico válido' },
+  )
   @IsNotEmpty({ message: 'El correo del cliente es requerido' })
   correoCliente!: string;
 
@@ -62,4 +72,3 @@ export class GenerarLinkPagoRequestDto {
   @Type(() => Date)
   fechaLimitePago!: Date;
 }
-
