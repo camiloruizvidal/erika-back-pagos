@@ -13,3 +13,17 @@ export class Config {
   static readonly woompiRedirectUrl = process.env.WOOMPI_REDIRECT_URL;
   static readonly pagoBaseUrl = process.env.PAGO_BASE_URL;
 }
+
+const errors: string[] = [];
+Object.keys(Config).forEach((key) => {
+  if (
+    Config[key] === null ||
+    Config[key] === undefined ||
+    `${Config[key]}`.trim() === ''
+  ) {
+    errors.push(`La variable de entorno ${key} es requerida`);
+  }
+});
+if (errors.length > 0) {
+  throw new Error(errors.join('\n'));
+}
