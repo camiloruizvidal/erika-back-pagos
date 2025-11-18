@@ -9,6 +9,7 @@ export class GenerarLinkPagoRequestDto {
   })
   @IsInt({ message: 'El ID de cuenta de cobro debe ser un número entero' })
   @IsNotEmpty({ message: 'El ID de cuenta de cobro es requerido' })
+  @Type(() => Number)
   cuentaCobroId!: number;
 
   @ApiProperty({
