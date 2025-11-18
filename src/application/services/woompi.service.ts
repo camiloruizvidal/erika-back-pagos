@@ -2,16 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { Config } from '../../infrastructure/config/config';
-
-export interface IGenerarLinkPagoRequest {
-  cuentaCobroId: number;
-  valorTotal: number;
-  referencia: string;
-  descripcion: string;
-  correoCliente: string;
-  nombreCliente: string;
-  fechaLimitePago: Date;
-}
+import { IGenerarLinkPagoRequest } from '../../domain/interfaces/pagos.interface';
 
 @Injectable()
 export class WoompiService {
