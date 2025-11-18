@@ -11,6 +11,7 @@ export class Config {
   static readonly woompiEventsSecret = process.env.WOOMPI_EVENTS_SECRET;
   static readonly woompiIntegritySecret = process.env.WOOMPI_INTEGRITY_SECRET;
   static readonly woompiRedirectUrl = process.env.WOOMPI_REDIRECT_URL;
+  static readonly woompiCheckoutUrl = process.env.WOOMPI_CHECKOUT_URL;
   static readonly pagoBaseUrl = process.env.PAGO_BASE_URL;
 }
 

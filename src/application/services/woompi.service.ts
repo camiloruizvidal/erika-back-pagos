@@ -25,12 +25,14 @@ export class WoompiService {
       .tz(datos.fechaLimitePago, 'America/Bogota')
       .format('YYYY-MM-DDTHH:mm:ssZ');
 
+    this.logger.debug(`amountInCents: ${amountInCents}`);
+    this.logger.debug(`expirationTime: ${expirationTime}`);
+
     const parametros: Record<string, string> = {
       'public-key': Config.woompiPublicKey,
       currency: 'COP',
       'amount-in-cents': amountInCents.toString(),
       reference: datos.referencia,
-      'tax-in-cents:vat': '0',
     };
 
     if (Config.woompiRedirectUrl) {
@@ -51,7 +53,8 @@ export class WoompiService {
 
     if (datos.identificacionCliente) {
       parametros['customer-data:legal-id'] = datos.identificacionCliente;
-      parametros['customer-data:legal-id-type'] = datos.tipoDocumentoCliente || 'CC';
+      parametros['customer-data:legal-id-type'] =
+        datos.tipoDocumentoCliente || 'CC';
     }
 
     if (datos.telefonoCliente) {
@@ -65,8 +68,13 @@ export class WoompiService {
 
     parametros['signature:integrity'] = firmaIntegridad;
 
-    const queryString = new URLSearchParams(parametros).toString();
-    const urlCheckout = `https://checkout.wompi.co/p/?${queryString}`;
+    const parametrosParaUrl = new URLSearchParams();
+    for (const key of Object.keys(parametros)) {
+      parametrosParaUrl.append(key, parametros[key]);
+    }
+
+    const queryString = parametrosParaUrl.toString();
+    const urlCheckout = `${Config.woompiCheckoutUrl}?${queryString}`;
 
     this.logger.log(
       `Link de pago Woompi generado exitosamente para cuenta de cobro ID: ${datos.cuentaCobroId}`,
@@ -80,16 +88,55 @@ export class WoompiService {
     parametros: Record<string, string>,
     integritySecret: string,
   ): string {
-    const parametrosOrdenados = Object.keys(parametros)
-      .filter((key) => key !== 'signature:integrity')
-      .sort()
-      .map((key) => `${key}${parametros[key]}`)
+    const parametrosSinFirma: Record<string, string> = {};
+
+    for (const key of Object.keys(parametros)) {
+      if (key !== 'signature:integrity') {
+        parametrosSinFirma[key] = parametros[key];
+      }
+    }
+
+    const tempUrlParams = new URLSearchParams();
+    for (const key of Object.keys(parametrosSinFirma)) {
+      tempUrlParams.append(key, parametrosSinFirma[key]);
+    }
+
+    const queryString = tempUrlParams.toString();
+    const paresCodificados = queryString.split('&').map((par) => {
+      const [key, value = ''] = par.split('=');
+      return [key, value];
+    });
+
+    paresCodificados.sort((a, b) => {
+      const keyA = decodeURIComponent(a[0]);
+      const keyB = decodeURIComponent(b[0]);
+      return keyA.localeCompare(keyB);
+    });
+
+    this.logger.debug('=== DEBUG FIRMA INTEGRIDAD ===');
+    this.logger.debug('Parámetros ordenados alfabéticamente (codificados):');
+    paresCodificados.forEach(([key, value]) => {
+      this.logger.debug(`  ${key}: ${value}`);
+    });
+
+    const stringParaFirma = paresCodificados
+      .map(([key, value]) => `${key}${value}`)
       .join('');
+
+    this.logger.debug(
+      `String completo para firma (codificado): ${stringParaFirma}`,
+    );
+    this.logger.debug(
+      `Integrity Secret (primeros 10 chars): ${integritySecret.substring(0, 10)}...`,
+    );
 
     const hmac = crypto
       .createHmac('sha256', integritySecret)
-      .update(parametrosOrdenados)
+      .update(stringParaFirma)
       .digest('hex');
+
+    this.logger.debug(`Firma generada: ${hmac}`);
+    this.logger.debug('=== FIN DEBUG FIRMA INTEGRIDAD ===');
 
     return hmac;
   }
