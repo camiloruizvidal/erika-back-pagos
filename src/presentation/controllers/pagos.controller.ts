@@ -41,6 +41,7 @@ export class PagosController {
 
   @Post('generar-link-pago')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtTenantGuard)
   @ApiOperation({
     summary: 'Generar link de pago',
     description:
